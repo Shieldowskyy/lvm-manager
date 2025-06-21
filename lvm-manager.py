@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import (
     QLineEdit, QPushButton, QComboBox, QMessageBox, QProgressBar, QDialog
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QIcon
 
 
 def parse_version(version_str):
@@ -233,6 +234,22 @@ class MainWindow(QWidget):
         # Set up main layout and widgets
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
+
+        # Top bar layout for info button
+        top_bar = QHBoxLayout()
+        top_bar.addStretch()  # Push button to the right
+
+        # Info icon button
+        info_btn = QPushButton()
+        info_btn.setText("🛈")
+        info_btn.setToolTip("About this application")
+        info_btn.setFixedSize(24, 24)
+        info_btn.setIconSize(info_btn.size())
+        info_btn.setFlat(True)  # usuwamy ramkę
+
+        info_btn.clicked.connect(self.show_about_dialog)
+        top_bar.addWidget(info_btn)
+        self.layout.addLayout(top_bar)
 
         # List widget for logical volumes
         self.lv_list = QListWidget()
@@ -468,6 +485,22 @@ class MainWindow(QWidget):
         self.loading_dialog.close()
         if self._callback:
             self._callback(success, msg)
+
+    def show_about_dialog(self):
+        """
+        Show About dialog with version and author info.
+        """
+        QMessageBox.information(
+            self,
+            "About LVM Manager",
+            "LVM Snapshot Manager\n"
+            "Version: 0.0.3\n"
+            "Author: Shieldziak\n"
+            "License: MIT\n"
+            "GitHub: https://github.com/Shieldowskyy/lvm-manager\n\n"
+            "This tool allows you to create, delete, and mount LVM snapshots via GUI.\n"
+            "Tested on LVM 2.03.30."
+        )
 
 
 # We need to import QInputDialog used in mount_snapshot
