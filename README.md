@@ -30,7 +30,7 @@ sudo pip install PyQt6
 ## Usage
 
 ```bash
-sudo python lvm_snapshot_manager.py
+sudo python lvm_manager.py
 ```
 
 1. Select a logical volume from the list.
