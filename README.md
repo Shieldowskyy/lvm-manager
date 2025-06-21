@@ -1,6 +1,7 @@
 # LVM Snapshot Manager (PyQt6)
 
 Simple graphical GUI for managing LVM snapshots: create, delete, view usage (in % and MB), and see free space in volume groups.
+
 ![LVM Snapshot Manager GUI](https://github.com/user-attachments/assets/aa7a769f-243d-4810-a894-5cbc77847b9e)
 
 *Screenshot of the LVM Snapshot Manager GUI on Fedora 42 KDE Plasma (with aerothemeplasma theme)*
