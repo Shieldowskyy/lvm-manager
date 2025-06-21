@@ -7,6 +7,30 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 
 
+def parse_version(version_str):
+    ver = version_str.split('(')[0]
+    parts = ver.strip().split('.')
+    parsed = []
+    for p in parts:
+        try:
+            parsed.append(int(p))
+        except:
+            digits = ''.join(filter(str.isdigit, p))
+            parsed.append(int(digits) if digits else 0)
+    return tuple(parsed)
+
+
+def check_lvm_version():
+    result = subprocess.run(["lvm", "version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    if result.returncode != 0:
+        return None
+    for line in result.stdout.splitlines():
+        if line.startswith("LVM version:"):
+            version_part = line.split(':', 1)[1].strip().split()[0]
+            return parse_version(version_part)
+    return None
+
+
 class LvmManager:
     def list_logical_volumes(self):
         result = subprocess.run(
@@ -94,6 +118,18 @@ class MainWindow(QWidget):
         self.lvm = LvmManager()
         self.setWindowTitle("LVM Snapshot Manager")
 
+        # Check LVM version and warn if newer than tested
+        tested_version = (2, 3, 30)
+        current_version = check_lvm_version()
+        if current_version is not None:
+            if current_version > tested_version:
+                QMessageBox.warning(
+                    self,
+                    "Warning",
+                    f"Detected LVM version {'.'.join(map(str, current_version))} is newer than tested version 2.3.30.\n"
+                    "Some features may not work as expected."
+                )
+
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
 
@@ -134,7 +170,7 @@ class MainWindow(QWidget):
         self.lv_list.itemSelectionChanged.connect(self.update_buttons_state)
 
         self.refresh_lv_list()
-        self.update_buttons_state()  # stan przycisku przy starcie
+        self.update_buttons_state()
 
     def refresh_lv_list(self):
         self.lv_list.clear()
@@ -164,7 +200,7 @@ class MainWindow(QWidget):
 
         vg, lv = selected.text().split("/", 1)
         vg = vg.strip()
-        lv = lv.split()[0]  # usuwa [snapshot] jeśli jest
+        lv = lv.split()[0]
 
         success, msg = self.lvm.create_snapshot(vg, lv, snap_name, size)
         if success:
