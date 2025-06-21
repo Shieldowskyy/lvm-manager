@@ -26,7 +26,7 @@ Simple graphical GUI for managing LVM snapshots: create, delete, view usage (in 
 ## Installation
 
 ```bash
-sudo pip install PyQt6
+pip install -r requirements.txt
 ````
 
 ## Usage
