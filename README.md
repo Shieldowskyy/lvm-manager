@@ -9,7 +9,8 @@ Simple graphical GUI for managing LVM snapshots: create, delete, view usage (in 
 
 - List logical volumes (LVs) with snapshots marked  
 - Create snapshots (select snapshot size)  
-- Delete snapshots (with confirmation)  
+- Delete snapshots (with confirmation)
+- Mount snapshots (in specified mount point)
 - Show snapshot usage in percent and MB  
 - Show free and used space in volume group (for LVs that are not snapshots)  
 - "Delete Snapshot" button enabled only for snapshots  
