@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
     QMenu, QTextEdit, QTableWidget, QTableWidgetItem
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QIcon, QClipboard, QFont
 
 
 def parse_version(version_str):
@@ -613,7 +613,7 @@ class MainWindow(QWidget):
             self,
             "About LVM Manager",
             "LVM Snapshot Manager\n"
-            "Version: 0.0.3\n"
+            "Version: 0.0.4\n"
             "Author: Shieldziak\n"
             "License: MIT\n"
             "GitHub: https://github.com/Shieldowskyy/lvm-manager\n\n"
