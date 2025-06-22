@@ -2,10 +2,11 @@ import sys
 import subprocess
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QLabel,
-    QLineEdit, QPushButton, QComboBox, QMessageBox, QProgressBar, QDialog
+    QLineEdit, QPushButton, QComboBox, QMessageBox, QProgressBar, QDialog,
+    QMenu, QTextEdit, QTableWidget, QTableWidgetItem
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QIcon
+from PyQt6.QtGui import QIcon, QClipboard, QFont
 
 
 def parse_version(version_str):
@@ -39,6 +40,69 @@ def check_lvm_version():
             return parse_version(version_part)
     return None
 
+class DetailsTableDialog(QDialog):
+    def __init__(self, title, raw_csv, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.resize(900, 400)
+
+        layout = QVBoxLayout(self)
+
+        lines = raw_csv.strip().splitlines()
+        headers = ["LV", "Path", "LSize (GB)", "Attr", "Origin", "Data %", "Meta %", "CTime"]
+
+        self.table = QTableWidget(len(lines), len(headers))
+        self.table.setHorizontalHeaderLabels(headers)
+
+        def fix_parts(parts):
+            # LSize merging (columns 2 and 3)
+            if len(parts) >= 4:
+                parts[2] = parts[2] + ',' + parts[3]
+                del parts[3]
+
+            # Missing origin (4th column)
+            if len(parts) == 7:
+                parts.insert(4, '')
+
+            # Merging the rest after Meta % (i.e. from column 7 to the end) into one CTime column
+            if len(parts) > 8:
+                parts[7] = ' '.join(parts[7:])
+                del parts[8:]
+
+            return parts
+
+        for row_i, line in enumerate(lines):
+            parts = line.split(",")
+            parts = fix_parts(parts)  # naprawiamy format
+            for col_i, val in enumerate(parts):
+                item = QTableWidgetItem(val.strip())
+                item.setFlags(item.flags() ^ Qt.ItemFlag.ItemIsEditable)
+                self.table.setItem(row_i, col_i, item)
+
+        layout.addWidget(self.table)
+
+        btn_layout = QHBoxLayout()
+        self.copy_btn = QPushButton("Copy to clipboard")
+        self.close_btn = QPushButton("Close")
+        btn_layout.addWidget(self.copy_btn)
+        btn_layout.addWidget(self.close_btn)
+        layout.addLayout(btn_layout)
+
+        self.copy_btn.clicked.connect(self.copy_to_clipboard)
+        self.close_btn.clicked.connect(self.close)
+
+    def copy_to_clipboard(self):
+        rows = []
+        headers = [self.table.horizontalHeaderItem(i).text() for i in range(self.table.columnCount())]
+        rows.append("\t".join(headers))
+        for r in range(self.table.rowCount()):
+            row_data = []
+            for c in range(self.table.columnCount()):
+                item = self.table.item(r, c)
+                row_data.append(item.text() if item else "")
+            rows.append("\t".join(row_data))
+        text = "\n".join(rows)
+        QApplication.clipboard().setText(text)
 
 class LvmManager:
     """
@@ -166,6 +230,20 @@ class LvmManager:
         print(f"[mount_snapshot SUCCESS] stdout: {result.stdout.strip()}")
         return True, result.stdout.strip()
 
+    def get_detailed_lv_info(self, vg_name, lv_name):
+        """
+        Retrieves volume information in CSV format for easier parsing.
+        """
+        result = subprocess.run(
+            ["lvs", "-a", f"/dev/{vg_name}/{lv_name}",
+            "-o", "lv_name,lv_path,lv_size,attr,origin,data_percent,metadata_percent,lv_time",
+            "--units", "g", "--separator", ",", "--nosuffix", "--noheadings"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
+        if result.returncode != 0:
+            return None
+        return result.stdout.strip()
+
 
 class CommandThread(QThread):
     """
@@ -208,6 +286,45 @@ class LoadingDialog(QDialog):
         self.resize(150, 80)
 
 
+class DetailsDialog(QDialog):
+    def __init__(self, title, text, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.resize(700, 400)
+
+        layout = QVBoxLayout(self)
+
+        self.text_edit = QTextEdit(self)
+        self.text_edit.setReadOnly(True)
+        self.text_edit.setFont(QFont("Monospace"))
+        self.text_edit.setText(text)
+        layout.addWidget(self.text_edit)
+
+        btn_layout = QHBoxLayout()
+        self.copy_btn = QPushButton("Kopiuj do schowka")
+        self.close_btn = QPushButton("Zamknij")
+        btn_layout.addWidget(self.copy_btn)
+        btn_layout.addWidget(self.close_btn)
+
+        layout.addLayout(btn_layout)
+
+        self.copy_btn.clicked.connect(self.copy_to_clipboard)
+        self.close_btn.clicked.connect(self.close)
+
+    def copy_to_clipboard(self):
+        # Copy the table to the clipboard as text (tab-separated)
+        rows = []
+        headers = [self.table.horizontalHeaderItem(i).text() for i in range(self.table.columnCount())]
+        rows.append("\t".join(headers))
+        for r in range(self.table.rowCount()):
+            row_data = []
+            for c in range(self.table.columnCount()):
+                item = self.table.item(r, c)
+                row_data.append(item.text() if item else "")
+            rows.append("\t".join(row_data))
+        text = "\n".join(rows)
+        QApplication.clipboard().setText(text)
+
 class MainWindow(QWidget):
     """
     Main GUI window class for LVM Snapshot Manager.
@@ -245,7 +362,7 @@ class MainWindow(QWidget):
         info_btn.setToolTip("About this application")
         info_btn.setFixedSize(24, 24)
         info_btn.setIconSize(info_btn.size())
-        info_btn.setFlat(True)  # usuwamy ramkę
+        info_btn.setFlat(True)  # remove frame
 
         info_btn.clicked.connect(self.show_about_dialog)
         top_bar.addWidget(info_btn)
@@ -253,6 +370,8 @@ class MainWindow(QWidget):
 
         # List widget for logical volumes
         self.lv_list = QListWidget()
+        self.lv_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.lv_list.customContextMenuRequested.connect(self.show_context_menu)
         self.lv_list.setSelectionMode(QListWidget.SelectionMode.SingleSelection)
         self.layout.addWidget(QLabel("Logical Volumes:"))
         self.layout.addWidget(self.lv_list)
@@ -339,7 +458,7 @@ class MainWindow(QWidget):
         lv = lv.split()[0]  # remove "[snapshot]" suffix if any
 
         # Run create_snapshot in background thread with loading dialog
-        self.run_with_loading(self.lvm.create_snapshot, vg, lv, snap_name, size, self.on_snapshot_created)
+        self.run_with_loading(self.lvm.create_snapshot, vg, lv, snap_name, size, callback=self.on_snapshot_created)
 
     def on_snapshot_created(self, success, msg):
         if success:
@@ -372,7 +491,7 @@ class MainWindow(QWidget):
         if confirm != QMessageBox.StandardButton.Yes:
             return
 
-        self.run_with_loading(self.lvm.remove_snapshot, vg, lv, self.on_snapshot_deleted)
+        self.run_with_loading(self.lvm.remove_snapshot, vg, lv, callback=self.on_snapshot_deleted)
 
     def on_snapshot_deleted(self, success, msg):
         if success:
@@ -502,6 +621,28 @@ class MainWindow(QWidget):
             "Tested on LVM 2.03.30."
         )
 
+    def show_context_menu(self, position):
+        item = self.lv_list.itemAt(position)
+        if item is None:
+            return
+        index = self.lv_list.row(item)
+        vg, lv, _ = self.lvs[index]
+
+        menu = QMenu()
+        details_action = menu.addAction("Show LV details")
+        action = menu.exec(self.lv_list.mapToGlobal(position))
+
+        if action == details_action:
+            info = self.lvm.get_detailed_lv_info(vg, lv)
+            if info is None:
+                QMessageBox.critical(self, "Error", "The volume details could not be retrieved.")
+                return
+
+            # Automatically copy to clipboard (optional)
+            QApplication.clipboard().setText(info)
+
+            dlg = DetailsTableDialog(f"Details for {vg}/{lv}", info, self)
+            dlg.exec()
 
 # We need to import QInputDialog used in mount_snapshot
 from PyQt6.QtWidgets import QInputDialog
