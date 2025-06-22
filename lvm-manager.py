@@ -1,3 +1,4 @@
+import os
 import sys
 import subprocess
 from PyQt6.QtWidgets import (
@@ -8,6 +9,21 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QFont
 
+def relaunch_with_pkexec():
+    if os.geteuid() != 0:
+        # Przekazanie DISPLAY i XAUTHORITY
+        display = os.environ.get("DISPLAY")
+        xauthority = os.environ.get("XAUTHORITY")
+        script_path = os.path.abspath(sys.argv[0])
+        args = ['pkexec', 'env']
+        if display:
+            args += ["DISPLAY=" + display]
+        if xauthority:
+            args += ["XAUTHORITY=" + xauthority]
+        args += [sys.executable, script_path] + sys.argv[1:]
+        os.execvp('pkexec', args)
+
+relaunch_with_pkexec()
 
 def parse_version(version_str):
     """
