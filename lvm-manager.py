@@ -613,7 +613,7 @@ class MainWindow(QWidget):
             self,
             "About LVM Manager",
             "LVM Snapshot Manager\n"
-            "Version: 0.0.4\n"
+            "Version: 0.0.3\n"
             "Author: Shieldziak\n"
             "License: MIT\n"
             "GitHub: https://github.com/Shieldowskyy/lvm-manager\n\n"
