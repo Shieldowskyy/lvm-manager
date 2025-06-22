@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
     QMenu, QTextEdit, QTableWidget, QTableWidgetItem
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QIcon, QClipboard, QFont
+from PyQt6.QtGui import QFont
 
 
 def parse_version(version_str):
